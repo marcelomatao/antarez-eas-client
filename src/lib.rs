@@ -10,10 +10,11 @@ pub mod encoding;
 pub mod error;
 pub mod types;
 
+pub use chain::{ChainConfig, chain_by_id};
 pub use client::EasClient;
 pub use config::EasConfig;
 pub use error::EasError;
-pub use types::{Attestation, AttestationRequest, SchemaRecord};
+pub use types::{Attestation, AttestationRequest, BatchAttestationResult, SchemaRecord, SchemaRequest};
 
 /// Returns the crate version.
 pub fn version() -> &'static str {
