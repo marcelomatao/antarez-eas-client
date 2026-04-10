@@ -13,6 +13,7 @@ pub mod types;
 pub use chain::{ChainConfig, chain_by_id};
 pub use client::EasClient;
 pub use config::EasConfig;
+pub use encoding::{decode_attestation, decode_simple, encode_attestation, encode_simple};
 pub use error::EasError;
 pub use types::{Attestation, AttestationRequest, BatchAttestationResult, SchemaRecord, SchemaRequest};
 
