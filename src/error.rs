@@ -64,6 +64,12 @@ pub enum ContractError {
     #[error("contract call failed: {details}")]
     CallFailed { details: String },
 
+    #[error("transaction failed: {details}")]
+    TransactionFailed { details: String },
+
+    #[error("empty batch: at least one request is required")]
+    EmptyBatch,
+
     #[error("insufficient funds for transaction: need {needed}, have {balance}")]
     InsufficientFunds { needed: String, balance: String },
 }
@@ -118,7 +124,9 @@ pub enum ErrorCode {
     NoReceipt = 2004,
     UidExtractionFailed = 2005,
     CallFailed = 2006,
-    InsufficientFunds = 2007,
+    TransactionFailed = 2007,
+    EmptyBatch = 2008,
+    InsufficientFunds = 2009,
 
     // Encoding errors: 3xxx
     AbiEncodingFailed = 3001,
@@ -155,6 +163,8 @@ impl EasError {
                 ContractError::NoReceipt => ErrorCode::NoReceipt,
                 ContractError::UidExtractionFailed => ErrorCode::UidExtractionFailed,
                 ContractError::CallFailed { .. } => ErrorCode::CallFailed,
+                ContractError::TransactionFailed { .. } => ErrorCode::TransactionFailed,
+                ContractError::EmptyBatch => ErrorCode::EmptyBatch,
                 ContractError::InsufficientFunds { .. } => ErrorCode::InsufficientFunds,
             },
             EasError::Encoding(e) => match e {
