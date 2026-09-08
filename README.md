@@ -26,6 +26,23 @@ This crate will be consumed as a git dependency:
 antarez-eas-client = { git = "git@github.com:antarez-tech-solutions/antarez-eas-client.git", branch = "main" }
 ```
 
+## Local validation
+
+Run before every commit:
+
+```bash
+cargo build --locked && cargo test   # compile + test suite
+cargo audit                          # RustSec advisories against Cargo.lock
+```
+
+This repo also ships a pre-commit hook (`.githooks/pre-commit`) that blocks
+secrets and internal endpoints from entering the public history. Activate it
+after cloning:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## License
 
 This repository and all contributions are licensed under the [LGPL 3.0](https://www.gnu.org/licenses/lgpl-3.0.html), unless otherwise specified in subdirectory LICENSE files.

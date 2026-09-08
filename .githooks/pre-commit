@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Block secrets and internal endpoints from entering a PUBLIC repo.
+set -euo pipefail
+
+PATTERNS='sk_(live|test)_|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]|glpat-|AIza[0-9A-Za-z_-]{35}|BEGIN .*PRIVATE KEY|xox[bps]-|antarez\.net|svc\.cluster\.local|password[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']{4,}'
+
+# The hook file itself IS the detector — its source necessarily contains the
+# patterns, so it is excluded from its own scan.
+MATCHES=$(git diff --cached -U0 -- . ':(exclude).githooks/*' | grep -E "^\+" | grep -iE "$PATTERNS" || true)
+
+if [ -n "$MATCHES" ]; then
+    echo "BLOCKED: staged diff matches a secret/internal-endpoint pattern." >&2
+    echo "$MATCHES" >&2
+    exit 1
+fi
