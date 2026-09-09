@@ -43,6 +43,16 @@ after cloning:
 git config core.hooksPath .githooks
 ```
 
+## Dependency policy
+
+Direct dependencies are pinned to exact versions (`=X.Y.Z`) and `Cargo.lock`
+is committed, so a fresh clone resolves to a known-good tree rather than
+whatever a range happens to float to.
+
+When bumping a dependency, wait **7 days** after the release before adopting
+it. Newly published versions are the window in which a compromised release
+is most likely to be live and least likely to be flagged.
+
 ## License
 
 This repository and all contributions are licensed under the [LGPL 3.0](https://www.gnu.org/licenses/lgpl-3.0.html), unless otherwise specified in subdirectory LICENSE files.
