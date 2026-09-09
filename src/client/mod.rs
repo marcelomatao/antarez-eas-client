@@ -8,30 +8,24 @@ use std::sync::Arc;
 
 use alloy::network::{Ethereum, EthereumWallet};
 use alloy::primitives::Address;
-use alloy::providers::{
-    Provider, ProviderBuilder, RootProvider,
-    fillers::{FillProvider, JoinFill, WalletFiller},
-    utils::JoinedRecommendedFillers,
-};
+use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 
 use crate::config::EasConfig;
 use crate::error::{EasError, ProviderError};
 
-/// Type alias for the configured provider with signer and recommended fillers.
-pub type SignedProvider = FillProvider<
-    JoinFill<JoinedRecommendedFillers, WalletFiller<EthereumWallet>>,
-    RootProvider<Ethereum>,
-    Ethereum,
->;
-
 /// The main EAS client.
 ///
 /// Holds a configured alloy provider and the contract addresses needed
-/// for attestation and schema operations.
+/// for attestation and schema operations. `Clone` (the provider is a
+/// cheap `Arc` handle) so callers can share one client across tasks —
+/// e.g. an `Arc<EasClient>` behind application state.
+#[derive(Clone)]
 pub struct EasClient {
-    /// Provider with signer for submitting transactions.
-    pub(crate) provider: Arc<SignedProvider>,
+    /// Provider: signed when built via [`EasClient::new`], account-less
+    /// when built via [`EasClient::read_only`]. Reads work either way;
+    /// a write on a read-only client fails at send time (no signer).
+    pub(crate) provider: Arc<DynProvider<Ethereum>>,
 
     /// EAS contract address.
     pub(crate) eas_address: Address,
@@ -77,7 +71,8 @@ impl EasClient {
 
         let provider = ProviderBuilder::new()
             .wallet(wallet)
-            .connect_http(rpc_url);
+            .connect_http(rpc_url)
+            .erased();
 
         // Verify chain ID
         let actual_chain_id = provider
@@ -97,6 +92,66 @@ impl EasClient {
         }
 
         // Parse addresses
+        let eas_address: Address = config
+            .eas_contract_address
+            .parse()
+            .map_err(|e| EasError::Config {
+                message: format!("invalid EAS contract address: {e}"),
+            })?;
+
+        let schema_registry_address: Address = config
+            .schema_registry_address
+            .parse()
+            .map_err(|e| EasError::Config {
+                message: format!("invalid schema registry address: {e}"),
+            })?;
+
+        Ok(Self {
+            provider: Arc::new(provider),
+            eas_address,
+            schema_registry_address,
+            chain_id: config.chain_id,
+            confirmations: config.confirmations,
+        })
+    }
+
+    /// Create a read-only EAS client — no signing key, no transaction
+    /// capability. Reads (`query_attestation`, `is_valid`,
+    /// `get_attestations`) work exactly as on a signed client; any write
+    /// attempt fails at send time because the underlying provider carries
+    /// no wallet.
+    ///
+    /// Use this for verification paths that must not hold the on-chain
+    /// signing key: a read-only consumer cannot sign anything even if
+    /// compromised.
+    pub async fn read_only(config: &EasConfig) -> Result<Self, EasError> {
+        let rpc_url: reqwest::Url = config
+            .rpc_url
+            .parse()
+            .map_err(|e| EasError::Config {
+                message: format!("invalid RPC URL: {e}"),
+            })?;
+
+        let provider = ProviderBuilder::new()
+            .connect_http(rpc_url)
+            .erased();
+
+        let actual_chain_id = provider
+            .get_chain_id()
+            .await
+            .map_err(|e| {
+                EasError::Provider(ProviderError::RequestFailed {
+                    details: format!("failed to get chain ID: {e}"),
+                })
+            })?;
+
+        if actual_chain_id != config.chain_id {
+            return Err(EasError::Provider(ProviderError::ChainIdMismatch {
+                expected: config.chain_id,
+                actual: actual_chain_id,
+            }));
+        }
+
         let eas_address: Address = config
             .eas_contract_address
             .parse()
